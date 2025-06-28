@@ -8,15 +8,23 @@ CONFIG_FILE=${ABS_PATH}/variables.config
 bash ${CONFIG_SH} > ${CONFIG_FILE}
 source ${CONFIG_FILE}
 
+
 mkdir -p ${ABS_PATH}/${temp_folder} > /dev/null
 mkdir -p ${ABS_PATH}/${backup_folder} > /dev/null
 mkdir -p ${ABS_PATH}/${stats_folder} > /dev/null
 
-echo "-------- Creating consolidated file... --------"
-bash ${ABS_PATH}/scripts/create_logs.sh
 
-echo "-------- Generating statistics reports... --------"
-bash ${ABS_PATH}/scripts/get_stats.sh
+for cicle in $(seq 1 $num_cicle); do
+
+    timestamp=$(date $date_format)
+
+    bash ${ABS_PATH}/scripts/create_logs.sh ${timestamp}
+
+    bash ${ABS_PATH}/scripts/get_stats.sh ${timestamp}
+
+	# Sleep for the duration of the cicle
+	sleep $cicle_duration
+done
 
 rm -rf variables.config
 

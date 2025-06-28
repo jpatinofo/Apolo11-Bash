@@ -48,6 +48,12 @@ La ejecución de la herramienta de línea de comando desarrollada para el proyec
 bash apolo_11.sh
 ```
 
+>[!IMPORTANT]
+> Para ejecutar las estadisticas del proyecto es necesario contar con `csvkit` en el entorno.
+> ```bash
+> sudo apt install csvkit
+> ```
+
 ## Estructuración de la herramienta CLI
 Teniendo presente los criterios mínimos establecidos para el desarrollo de la herramienta de línea de comandos, se definió una estructura de proyecto escalable y de facil soporte, basandose en el **principio de responsabilidad única - (SRP)** como se presenta a continuación: 
 
@@ -75,15 +81,23 @@ CONFIG_FILE=${ABS_PATH}/variables.config
 bash ${CONFIG_SH} > ${CONFIG_FILE}
 source ${CONFIG_FILE}
 
+
 mkdir -p ${ABS_PATH}/${temp_folder} > /dev/null
 mkdir -p ${ABS_PATH}/${backup_folder} > /dev/null
 mkdir -p ${ABS_PATH}/${stats_folder} > /dev/null
 
-echo "-------- Creating consolidated file... --------"
-bash ${ABS_PATH}/scripts/create_logs.sh
 
-echo "-------- Generating statistics reports... --------"
-bash ${ABS_PATH}/scripts/get_stats.sh
+for cicle in $(seq 1 $num_cicle); do
+
+    timestamp=$(date $date_format)
+
+    bash ${ABS_PATH}/scripts/create_logs.sh ${timestamp}
+
+    bash ${ABS_PATH}/scripts/get_stats.sh ${timestamp}
+
+    # Sleep for the duration of the cicle
+    sleep $cicle_duration
+done
 
 rm -rf variables.config
 
@@ -95,9 +109,11 @@ La estructura resultante tras ejecutar esta herramienta de línea de comandos es
 ```plaintext=
 ├── apolo_11.sh
 ├── backup
-│   └── APL CLNM-00002.log
+│   └── 23062518064734
+        └── APL CLNM-00003.log
 ├── devices
-│   └── APL CLNM-00003.log
+│   └── 23062518064734
+        └── APL CLNM-00003.log
 ├── scripts
 │   ├── config.sh
 │   ├── create_logs.sh
@@ -108,11 +124,12 @@ La estructura resultante tras ejecutar esta herramienta de línea de comandos es
 │       ├── consolidacion_misiones.sql
 │       └── gestion_desconexiones.sql
 └── stats
-    ├── APLSTATS-analisis_eventos-23062518064734.log
-    ├── APLSTATS-calculo_porcentajes-23062518064734.log
-    ├── APLSTATS-consolidacion_misiones-23062518064734.log
-    ├── APLSTATS-gestion_desconexiones-23062518064734.log
-    └── consolidated_logs_23062518064734.log
+    ├── 23062518064734
+        ├── APLSTATS-analisis_eventos-23062518064734.log
+        ├── APLSTATS-calculo_porcentajes-23062518064734.log
+        ├── APLSTATS-consolidacion_misiones-23062518064734.log
+        ├── APLSTATS-gestion_desconexiones-23062518064734.log
+        └── consolidated_logs_23062518064734.log
 ```
 
 ### Scripts Directory
@@ -193,11 +210,11 @@ create_file(){
     local mission_name=$(get_element $1)
     local device_status=$(get_element $2)
     local device_type=$(get_element $3)
-    local formated_date=$(date $4)
+    local timestamp=$4
     local separator=$5
     local filename=$6
 
-    local hash=$(echo "${formated_date}${mission_name}${device_type}${device_status}" | base64)
+    local hash=$(echo "${timestamp}${mission_name}${device_type}${device_status}" | base64)
 
     if [ "$mission_name" == 'UNKN' ]; then
         local hash=""
@@ -206,11 +223,11 @@ create_file(){
     fi
 
     local header="date${separator}mission${separator}device_type${separator}device_status${separator}hash"
-    local value="${formated_date}${separator}${mission_name}${separator}${device_type}${separator}${device_status}${separator}${hash}"
+    local value="${timestamp}${separator}${mission_name}${separator}${device_type}${separator}${device_status}${separator}${hash}"
     local file="${filename/mission_name/$mission_name}"
 
     if [ ! -f  "$file" ]; then
-    echo -e $header > "$file"
+        echo -e $header > "$file"
     fi
 
     echo -e $value >> "$file"
@@ -221,21 +238,14 @@ create_file(){
 Función orquestadora encargada de procesar los ciclos de ejecución de cada mision del proyecto **Apolo 11**.
 ```bash=
 create_logs(){
-    for cicle in $(seq 1 $num_cicle); do
-        # Number of files to create per cicle
-        FILES_PER_CICLE=$(get_random $min_files $max_files)
-        #Creating n files per cicles
-        for index_file in $(seq 1 ${FILES_PER_CICLE}); do
-            $(create_file missions device_statuses device_types $date_format $file_sep "${TEMP_FOLDER_FILE_PATH/file_number/$index_file}")
-        done
-    # Wait until cicle time expires
+	
+    # Number of files to create per cicle
+    local files_per_cicle=$(get_random $min_files $max_files)
 
-    printf "Cicle %s completed. Waiting for next cicle in %ss...\n" "$cicle" "$cicle_duration"
-        # Sleep for the duration of the cicle
-    sleep $cicle_duration
+    #Creating n files per cicles
+    for index_file in $(seq 1 ${files_per_cicle}); do
+        $(create_file missions device_statuses device_types ${FORMATED_DATE} $file_sep "${TEMP_FOLDER_FILE_PATH/file_number/$index_file}")
     done
-
-    echo "$(ls devices/*.log | wc -l) .log files created in ${PROJECT_PATH}/${temp_folder}"
 }
 ```
 
@@ -263,8 +273,8 @@ get_consolidated() {
     mapfile -d '' log_files < <(find "$1" -maxdepth 1 -type f -name "APL *.log" -print0)
     local consolidated=$(csvstack -t "${log_files[@]}" | csvsort -c 1)
 
-    mv "${log_files[@]}" "${backup_folder}"
-
+    mv "${temp_folder}" "${backup_folder}"
+    
     echo "$consolidated" > "$consolidated_file_name_path"
 }
 ```
@@ -322,7 +332,6 @@ get_stats() {
 
     for report in "${stats_reports[@]}"; do    
         $(query_report $report "${STATS_FOLDER_FILE_PATH/date/$FORMATED_DATE}")
-        echo "$report report generated."
     done
 }
 ```
