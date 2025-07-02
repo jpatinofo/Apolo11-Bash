@@ -16,5 +16,5 @@ FROM
 
     FROM events
     WHERE mission NOT IN ('UNKN')
-    GROUP BY mission, device_type, device_status
+    GROUP BY mission, device_type
 ) as subquery
