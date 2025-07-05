@@ -54,8 +54,8 @@ bash apolo_11.sh
 > sudo apt install csvkit
 > ```
 
-## Estructuración de la herramienta CLI
-Teniendo presente los criterios mínimos establecidos para el desarrollo de la herramienta de línea de comandos, se definió una estructura de proyecto escalable y de facil soporte, basandose en el **principio de responsabilidad única - (SRP)** como se presenta a continuación: 
+## Estructuración de la herramienta
+Teniendo presente los criterios mínimos establecidos para el desarrollo de la herramienta de línea de comandos, se definió una estructura de proyecto que fuese escalable y de facil soporte, basandose en el **principio de responsabilidad única - (SRP)** como se presenta a continuación: 
 
 ```plaintext
 ├── apolo_11.sh
@@ -87,7 +87,7 @@ mkdir -p ${ABS_PATH}/${backup_folder} > /dev/null
 mkdir -p ${ABS_PATH}/${stats_folder} > /dev/null
 
 
-for cicle in $(seq 1 $num_cicle); do
+# for cicle in $(seq 1 $num_cicle); do
 
     timestamp=$(date $date_format)
 
@@ -96,13 +96,17 @@ for cicle in $(seq 1 $num_cicle); do
     bash ${ABS_PATH}/scripts/get_stats.sh ${timestamp}
 
     # Sleep for the duration of the cicle
-    sleep $cicle_duration
-done
+#    sleep $cicle_duration
+# done
 
 rm -rf variables.config
 
 echo "-------- Apolo 11 script completed successfully. --------"
 ```
+
+>[!Important]
+> Según la guía de evaluación, los ciclos de ejecución de la herramienta deben ocurrir cada 20 segundos. Aunque este comportamiento puede implementarse fácilmente en entornos locales utilizando `cron` en sistemas Unix o un ciclo iterativo dentro del script principal (como se muestra en las líneas comentadas), no es una práctica recomendada, especialmente en entornos de nube. Esto se debe a que mantener procesos activos continuamente puede derivar en un uso ineficiente de recursos y generar costos innecesarios entre cada ciclo de ejecución.
+
 
 La estructura resultante tras ejecutar esta herramienta de línea de comandos es la siguiente:
 
@@ -142,8 +146,8 @@ En el caso de este proyecto, archivo `config.sh` tiene la responsabilidad de gen
 
 ``` bash
 date_format='+%d%m%y%H%I%M%S' # Fomato de fecha
-num_cicle=3 # Número de ciclos a ejecutar
-cicle_duration=2 # Tiempo en segundos de la duración del ciclo
+# num_cicle=1 # Número de ciclos a ejecutar
+# cicle_duration=20 # Tiempo en segundos de la duración del ciclo
 min_files=1 # Número mínimo de archivos a generar por ciclo
 max_files=100 # Número máximo de archivos a generar por ciclo
 file_name='APL mission_name-0000file_number.log' # Formato de nombre del archivo de logs
@@ -158,9 +162,9 @@ device_statuses=(excellent good warning faulty killed unknown) # Listado de esta
 device_types=(satellites spaceships space_vehicles spacial_suit other_components) # Listado de dispositivos
 stats_reports=('analisis_eventos'  'gestion_desconexiones' 'consolidacion_misiones' 'calculo_porcentajes') # Listado de reportes
 ```
-> [!NOTE] 
-> Con el fin de garantizar el correcto funcionamiento, los elementos de las variables definidas como arregos, no pueden contener espacios entre palabras.
-
+> [!IMPORTANT]
+> * Con el fin de garantizar el correcto funcionamiento, los elementos de las variables definidas como arreglos, no pueden contener espacios entre palabras.
+> * A partir de las implicaciones que conllevaría mantener procesos activos en entornos de nube. No se considerará las variables de configuración `num_cicles` y `cicle_duration`.
 
 #### create_logs.sh
 Esta herramienda de línea de comandos tiene la responsabilidad de simular la recepción de los logs de los diferentes dispositivos y almacenarlos en archivos estructurados. 

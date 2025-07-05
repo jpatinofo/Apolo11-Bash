@@ -14,7 +14,7 @@ mkdir -p ${ABS_PATH}/${backup_folder} > /dev/null
 mkdir -p ${ABS_PATH}/${stats_folder} > /dev/null
 
 
-for cicle in $(seq 1 $num_cicle); do
+# for cicle in $(seq 1 $num_cicle); do
 
     timestamp=$(date $date_format)
 
@@ -23,8 +23,8 @@ for cicle in $(seq 1 $num_cicle); do
     bash ${ABS_PATH}/scripts/get_stats.sh ${timestamp}
 
 	# Sleep for the duration of the cicle
-	sleep $cicle_duration
-done
+# 	sleep $cicle_duration
+# done
 
 rm -rf variables.config
 
