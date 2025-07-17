@@ -73,14 +73,15 @@ Teniendo presente los criterios mínimos establecidos para el desarrollo de la h
 ### apolo_11.sh
 Herramienta de línea de comandos principal del proyecto **Apolo 11**, con la responsabilidad de generar los directorios adicionales necesarios (*backup*,*devices*,*stats*), el archivo de configuración y la orquestación de las sub-herramientas de línea de comandos para la generación de archivos de logs y reportes estadisticos.
 ```bash=
+#!/usr/bin/env bash
+
 echo "-------- Starting Apolo 11 script... --------"
-ABS_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)" #$(pwd)
+ABS_PATH="$(pwd)"
 CONFIG_SH=${ABS_PATH}/scripts/config.sh
 CONFIG_FILE=${ABS_PATH}/variables.config
 
 bash ${CONFIG_SH} > ${CONFIG_FILE}
 source ${CONFIG_FILE}
-
 
 mkdir -p ${ABS_PATH}/${temp_folder} > /dev/null
 mkdir -p ${ABS_PATH}/${backup_folder} > /dev/null
@@ -91,12 +92,12 @@ mkdir -p ${ABS_PATH}/${stats_folder} > /dev/null
 
     timestamp=$(date $date_format)
 
-    bash ${ABS_PATH}/scripts/create_logs.sh ${timestamp}
+    source ${ABS_PATH}/scripts/create_logs.sh ${timestamp}
 
-    bash ${ABS_PATH}/scripts/get_stats.sh ${timestamp}
+    source ${ABS_PATH}/scripts/get_stats.sh ${timestamp}
 
-    # Sleep for the duration of the cicle
-#    sleep $cicle_duration
+	# Sleep for the duration of the cicle
+# 	sleep $cicle_duration
 # done
 
 rm -rf variables.config
@@ -147,10 +148,10 @@ En el caso de este proyecto, archivo `config.sh` tiene la responsabilidad de gen
 ``` bash
 date_format='+%d%m%y%H%I%M%S' # Fomato de fecha
 # num_cicle=1 # Número de ciclos a ejecutar
-# cicle_duration=20 # Tiempo en segundos de la duración del ciclo
+# cicle_duration=1 # Tiempo en segundos de la duración del ciclo
 min_files=1 # Número mínimo de archivos a generar por ciclo
 max_files=100 # Número máximo de archivos a generar por ciclo
-file_name='APL mission_name-0000file_number.log' # Formato de nombre del archivo de logs
+file_name='APLmission_name-0000file_number.log' # Formato de nombre del archivo de logs
 consolidated_file_name='consolidated_logs_fdate.log' # Formato de nombre del arhivo de consolidado de logs
 stats_file_name='APLSTATS-report-date.log' # Formato de nombre del archivo de reportes
 file_sep='\t' # Separador para el archivo de logs
@@ -160,7 +161,7 @@ stats_folder='stats' # Directorio de reportes
 missions=(ORBONE CLNM TMRS GALXONE UNKN) # Listado de misiones
 device_statuses=(excellent good warning faulty killed unknown) # Listado de estados
 device_types=(satellites spaceships space_vehicles spacial_suit other_components) # Listado de dispositivos
-stats_reports=('analisis_eventos'  'gestion_desconexiones' 'consolidacion_misiones' 'calculo_porcentajes') # Listado de reportes
+stats_reports=(analisis_eventos gestion_desconexiones consolidacion_misiones calculo_porcentajes) # Listado de reportes
 ```
 > [!IMPORTANT]
 > * Con el fin de garantizar el correcto funcionamiento, los elementos de las variables definidas como arreglos, no pueden contener espacios entre palabras.
@@ -256,7 +257,7 @@ create_logs(){
 #### get_stats.sh
 Esta herramienda de línea de comandos tiene la responsabilidad generar los resportes estadisticos solicitados en archivos estructurados y realizar el backup de los logs de cada misión del proyecto **Apolo 11**.
 
-Este script cuenta con 5 funciones principales, (`get_consolidated`, `normalize_string`, `query_report`, `execute_query`,`get_stats`) que se explicarán más adelante.
+Este script cuenta con 4 funciones principales, (`get_consolidated`,`query_report`, `execute_query`,`get_stats`) que se explicarán más adelante.
 
 Los archivos resultantes tras ejecutar esta herramienta de línea de comandos son almacenados en el directorio **stats** con la siguiente estructura para cada reporte:
 
@@ -274,32 +275,13 @@ get_consolidated() {
     local backup_folder=$2
     local consolidated_file_name_path=$3
 
-    mapfile -d '' log_files < <(find "$1" -maxdepth 1 -type f -name "APL *.log" -print0)
-    local consolidated=$(csvstack -t "${log_files[@]}" | csvsort -c 1)
+    local log_files=$(ls "$temp_folder"/APL*.log 2>/dev/null)
+
+    local consolidated=$(csvstack -t $log_files | csvsort -c 1)
 
     mv "${temp_folder}" "${backup_folder}"
-    
+
     echo "$consolidated" > "$consolidated_file_name_path"
-}
-```
-
-##### normalize_string
-Funcion encargada de normalizar el nombre de los reportes, garantizando que cada string este en formato lowercase y sin acentos propios del lenguaje castellado. Recibe como argumento el string a normalizar (*input*) y retona el string normalizado.
-
-```bash=
-normalize_string(){
-    local input=$1
-
-    local normalized=$(echo "$input" | tr '[:upper:]' '[:lower:]')
-    normalized=$(echo "$normalized" |
-    sed -e 's/á/a/g' \
-        -e 's/é/e/g' \
-        -e 's/í/i/g' \
-        -e 's/ó/o/g' \
-        -e 's/ú/u/g' \
-        -e 's/ñ/n/g')
-
-    echo "$normalized"
 }
 ```
 
@@ -307,11 +289,11 @@ normalize_string(){
 Función encargada de generar el archivo reporte con las estadisticas definidas en la guia de evaluación del proyecto **Apolo 11** en el directorio correspondiente. Recibe como argumento el nombre del reporte a ejecutar (*report*), y el nombre del archivo a generar con el reporte (*file_name*).
 ```bash=
 query_report() {
-    local report=$(normalize_string $1)
+    local report=$1
     local file_name=$2
-    
-    local report_query="${report}.sql"
 
+    local report_query="${report}.sql"
+    
     #Calling the function dynamically and save its return value
     echo "$(execute_query $report_query)" > "${file_name/report/$report}"
 }
@@ -323,7 +305,7 @@ Función encargada de leer las consultas `.sql` del directorio **queries** y eje
 execute_query(){
     local query=$1
 
-    csvsql --query "$(cat "${SCRIPT_DIR}/queries/$query")"  ${CONSOLIDATED_FILE_PATH} --tables events  
+    csvsql --query "$(cat "${PROJECT_PATH}/scripts/queries/$query")"  ${CONSOLIDATED_FILE_PATH} --tables events  
 }
 ```
 
@@ -332,9 +314,10 @@ Función orquestadora encargada de generar los reportes estadisticos del proyect
 ```bash=
 get_stats() {
     # Create consolidated logs file and backup source files
+
     $(get_consolidated $TEMP_FOLDER $BACKUP_FOLDER $CONSOLIDATED_FILE_PATH)
 
-    for report in "${stats_reports[@]}"; do    
+    for report in "${stats_reports[@]}"; do            
         $(query_report $report "${STATS_FOLDER_FILE_PATH/date/$FORMATED_DATE}")
     done
 }

@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 echo "date_format='+%d%m%y%H%I%M%S'"
 # echo "num_cicle=1"
 # echo "cicle_duration=20"
