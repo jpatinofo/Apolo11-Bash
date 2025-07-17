@@ -1,5 +1,20 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# set -euo pipefail
+
+
+FORMATED_DATE=$1
+
+PROJECT_PATH=$(pwd)
+CONFIG_FILE=${PROJECT_PATH}/variables.config
+
+#Load env variables
+source ${CONFIG_FILE}
+
+mkdir -p ${PROJECT_PATH}/$temp_folder/${FORMATED_DATE} > /dev/null
+
+TEMP_FOLDER_FILE_PATH=${PROJECT_PATH}/$temp_folder/${FORMATED_DATE}/$file_name
+
+
 # get random number between min and max
 get_random(){
 	local min=$1
@@ -63,17 +78,5 @@ create_logs(){
 		$(create_file missions device_statuses device_types ${FORMATED_DATE} $file_sep "${TEMP_FOLDER_FILE_PATH/file_number/$index_file}")
 	done
 }
-
-FORMATED_DATE=$1
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-PROJECT_PATH="$(dirname "$SCRIPT_DIR")"
-CONFIG_FILE=${PROJECT_PATH}/variables.config
-#Load env variables
-source ${CONFIG_FILE}
-
-mkdir -p ${PROJECT_PATH}/$temp_folder/${FORMATED_DATE} > /dev/null
-
-TEMP_FOLDER_FILE_PATH=${PROJECT_PATH}/$temp_folder/${FORMATED_DATE}/$file_name
 
 echo "$(create_logs)"
